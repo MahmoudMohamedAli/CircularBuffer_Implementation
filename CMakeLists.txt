@@ -1,33 +1,87 @@
 cmake_minimum_required(VERSION 3.15)
 
-set(CMAKE_CXX_COMPILER g++)
-set(CMAKE_C_COMPILER gcc)
+project(CircularBufferExample LANGUAGES CXX)
+
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g ")
+# Optionally add debug flags
+add_compile_options(-g)
+
+# Enable CMake test functionality
+enable_testing()
+
+# Find GoogleTest
+find_package(GTest REQUIRED)
+
+if(NOT GTest_FOUND)
+    message(FATAL_ERROR "GTest not found")
+endif()
+
+# ------------------------------
+# Header-only library
+# ------------------------------
+add_library(CircularBuffer_Lib INTERFACE)
 
 
-
-project(CircularBuffer)
-
-add_executable(CircularBuffer
-   CircularBuffer/CircularBuffer.hpp
+target_include_directories(CircularBuffer_Lib
+    INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/CircularBuffer>
+        $<INSTALL_INTERFACE:include>
 )
 
+# ------------------------------
+# Test executable
+# ------------------------------
+set(SRC_FILES
+    gTest/functions_Test.cpp
+)
 
-add_library(CircularBuffer STATIC CircularBuffer/CircularBuffer.hpp)
-# include_directories(CircularBuffer "./include")
+add_executable(CircularBuffer_App ${SRC_FILES})
 
-# add_library(custom_lib_string STATIC
-#     src/StringCustom.cpp
-# )
+target_link_libraries(CircularBuffer_App
+    PRIVATE
+        CircularBuffer_Lib
+        GTest::gtest
+        GTest::gtest_main
+        #GTest::gmock_main   # or GTest::gtest_main
+)
+
+# ------------------------------
+# Register the tests
+# ------------------------------
+include(GoogleTest)
+gtest_discover_tests(CircularBuffer_App)
 
 
-# 
+############################################################
+# Install the header-only library
+############################################################
 
-# target_include_directories(CircularBuffer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/CircularBuffer)
+# Install public headers
+install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/CircularBuffer
+    DESTINATION include
+)
+install(
+    TARGETS CircularBuffer_Lib
+    EXPORT CircularBufferTargets
+)
 
-# enable_testing()
+############################################################
+# Install the application executable
+############################################################
+install(
+    TARGETS CircularBuffer_App
+    RUNTIME DESTINATION bin
+)
 
-# add_subdirectory(tests)
+############################################################
+# Export the library for find_package()
+############################################################
+install(
+    EXPORT CircularBufferTargets
+    FILE CircularBufferConfig.cmake
+    NAMESPACE CircularBuffer::
+    DESTINATION lib/cmake/CircularBuffer
+)
